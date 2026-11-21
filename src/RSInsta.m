@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <AVKit/AVKit.h>
 #import <objc/runtime.h>
 #import <dlfcn.h>
 
@@ -30,7 +31,7 @@ static NSArray<NSDictionary *> *RSFeatureList(void) {
             @{@"key":@"app_icons", @"title":@"Custom App Icons", @"group":@"Appearance"},
             @{@"key":@"language", @"title":@"Language Settings", @"group":@"Appearance"},
             @{@"key":@"liquid_glass", @"title":@"Liquid Glass", @"group":@"Appearance"},
-            @{@"key":@"pip", @"title":@"Picture in Picture", @"group":@"Media"},
+            @{@"key":@"pip", @"title":@"Picture in Picture", @"group":@"Media", @"tool":@YES},
             @{@"key":@"reels_blocker", @"title":@"Reels Blocker", @"group":@"Media"},
             @{@"key":@"close_friends", @"title":@"Close Friends", @"group":@"Stories"},
             @{@"key":@"device_identity", @"title":@"Device Identity", @"group":@"Advanced"},
@@ -125,8 +126,8 @@ static void RSInstallHooks(void) {
     self.tableView.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
         target:self action:@selector(rsDone)];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Media URL"
-        style:UIBarButtonItemStylePlain target:self action:@selector(rsDownloadURL)];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Media Tools"
+        style:UIBarButtonItemStylePlain target:self action:@selector(rsMediaMenu)];
 }
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { (void)tableView; return (NSInteger)RSGroups().count; }
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
@@ -141,10 +142,13 @@ static void RSInstallHooks(void) {
     NSString *key = item[@"key"];
     BOOL implemented = [item[@"hook"] boolValue];
     BOOL installed = implemented && [RSHookAvailable[key] boolValue];
+    BOOL tool = [item[@"tool"] boolValue];
     cell.textLabel.text = item[@"title"];
-    cell.detailTextLabel.text = !implemented ? @"Not implemented" : installed ? @"Experimental hook installed" : @"Hook unavailable";
+    cell.detailTextLabel.text = tool ? @"Direct HTTPS video only — tap to play" : !implemented ? @"Not implemented" : installed ? @"Experimental hook installed" : @"Hook unavailable";
     cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
-    if (installed) {
+    if (tool) {
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    } else if (installed) {
         UISwitch *toggle = [[UISwitch alloc] init];
         toggle.on = RSEnabled(key);
         toggle.accessibilityIdentifier = key;
@@ -155,8 +159,53 @@ static void RSInstallHooks(void) {
     }
     return cell;
 }
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)ip {
+    [tableView deselectRowAtIndexPath:ip animated:YES];
+    NSDictionary *item = RSFeaturesForGroup(RSGroups()[(NSUInteger)ip.section])[(NSUInteger)ip.row];
+    if ([item[@"key"] isEqualToString:@"pip"]) [self rsPlayVideoURL];
+}
 - (void)rsToggle:(UISwitch *)toggle { RSSetEnabled(toggle.accessibilityIdentifier, toggle.on); }
 - (void)rsDone { [self dismissViewControllerAnimated:YES completion:nil]; }
+- (void)rsMediaMenu {
+    UIAlertController *menu = [UIAlertController alertControllerWithTitle:@"RS Insta Media Tools"
+        message:@"Direct HTTPS media URLs only" preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak typeof(self) weakSelf = self;
+    [menu addAction:[UIAlertAction actionWithTitle:@"Download / Share URL" style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *action) { (void)action; [weakSelf rsDownloadURL]; }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"Play Video / Picture in Picture" style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *action) { (void)action; [weakSelf rsPlayVideoURL]; }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    UIPopoverPresentationController *popover = menu.popoverPresentationController;
+    if (popover) popover.barButtonItem = self.navigationItem.rightBarButtonItem;
+    [self presentViewController:menu animated:YES completion:nil];
+}
+- (void)rsPlayVideoURL {
+    UIAlertController *prompt = [UIAlertController alertControllerWithTitle:@"Play video"
+        message:@"Use a direct HTTPS video URL. Full in-feed Instagram PiP is not implemented."
+        preferredStyle:UIAlertControllerStyleAlert];
+    [prompt addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.placeholder = @"https://example.com/video.mp4";
+        field.keyboardType = UIKeyboardTypeURL;
+        field.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    }];
+    __weak typeof(self) weakSelf = self;
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Play" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        (void)action;
+        NSURL *url = [NSURL URLWithString:prompt.textFields.firstObject.text ?: @""];
+        if (![url.scheme.lowercaseString isEqualToString:@"https"] || !url.host.length) {
+            [weakSelf rsMessage:@"Invalid URL" detail:@"A direct HTTPS video URL is required."];
+            return;
+        }
+        AVPlayerViewController *playerView = [AVPlayerViewController new];
+        playerView.allowsPictureInPicturePlayback = YES;
+        playerView.player = [AVPlayer playerWithURL:url];
+        [weakSelf presentViewController:playerView animated:YES completion:^{
+            [playerView.player play];
+        }];
+    }]];
+    [self presentViewController:prompt animated:YES completion:nil];
+}
 - (void)rsDownloadURL {
     UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Download media URL"
         message:@"Paste a direct HTTPS video or image URL. This does not extract private Instagram media links."
