@@ -245,7 +245,7 @@ static void RSInstallHooks(void) {
     }
     static const NSInteger gestureTag = 0x525349;
     if (![window viewWithTag:gestureTag]) {
-        UIView *marker = [[UIView alloc] initWithFrame:CGRectZero];
+        UIView *marker = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 0)];
         marker.tag = gestureTag;
         [window addSubview:marker];
         UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(openMenu)];
