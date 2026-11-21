@@ -1,0 +1,7 @@
+dist/
+build/
+.theos/
+packages/
+*.o
+*.dylib
+.DS_Store
