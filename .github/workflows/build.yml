@@ -1,0 +1,29 @@
+name: Build RS Insta iOS dylib
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate source inventory
+        run: python3 tests/test_source.py
+      - name: Build arm64 iOS Mach-O dylib
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          mkdir -p dist
+          xcrun --sdk iphoneos clang -target arm64-apple-ios13.0 -isysroot "$SDK" -fobjc-arc -fblocks -Wno-deprecated-declarations -dynamiclib -framework Foundation -framework UIKit -lobjc -ldl -Wl,-install_name,@rpath/RSInsta.dylib -o dist/RSInsta.dylib src/RSInsta.m
+          xcrun dwarfdump --uuid dist/RSInsta.dylib
+          file dist/RSInsta.dylib
+      - name: Save artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RSInsta-dylib
+          path: dist/RSInsta.dylib
+          if-no-files-found: error
