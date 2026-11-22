@@ -1,0 +1,10 @@
+Package: com.rsinsta.tweak
+Name: RS Insta
+Version: 1.5.1
+Architecture: iphoneos-arm
+Description: Bring the spark back to Instagram!
+Homepage: https://github.com/userpc5661-png/RsYT2
+Maintainer: efibalogh
+Author: efibalogh
+Section: Tweaks
+Depends: mobilesubstrate
