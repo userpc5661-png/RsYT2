@@ -1,0 +1,60 @@
+name: Import Sparkle GPL source into RS Insta
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-sparkle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RS Insta repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Fetch original Sparkle source and submodules
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/Scythe101/sparkle-ig.git /tmp/sparkle-upstream
+          cd /tmp/sparkle-upstream
+          git fetch --depth 1 origin 1afeeefe5f1c7e03d5fd6e2c48e283fce7c2e4f3
+          git checkout --detach 1afeeefe5f1c7e03d5fd6e2c48e283fce7c2e4f3
+          git submodule update --init --recursive
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p RSInstaSparkle
+          rsync -a --delete --exclude='.git' --exclude='packages/' --exclude='.theos/' --exclude='.cache/' /tmp/sparkle-upstream/ RSInstaSparkle/
+      - name: Apply RS Insta build name and preserve GPL attribution
+        run: |
+          python3 scripts/brand_sparkle.py
+          cat > RSInstaSparkle/RSINSTA_UPSTREAM.md <<'EOF'
+          # RS Insta upstream credit
+
+          This folder is derived from Sparkle for Instagram, original project:
+          https://github.com/Scythe101/sparkle-ig
+          Source revision: 1afeeefe5f1c7e03d5fd6e2c48e283fce7c2e4f3
+
+          The original LICENSE (GPLv3), attribution and source remain available here.
+          RS Insta modifies the tweak binary target, Debian package metadata, and
+          some user-facing labels. Internal SPK identifiers and resource bundle
+          paths are kept intact for compatibility.
+          EOF
+          test -f RSInstaSparkle/LICENSE
+          test -f RSInstaSparkle/src/Settings/SPKSettingsViewController.m
+          test -f RSInstaSparkle/Makefile
+      - name: Commit imported source to RS Insta
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RSInstaSparkle
+          if ! git diff --cached --quiet; then
+            git commit -m "Import Sparkle GPLv3 source as RS Insta feature base"
+            git push origin HEAD:main
+          fi
