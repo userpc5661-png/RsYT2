@@ -4,8 +4,8 @@ Independent Objective-C iOS tweak project. This repository does **not** contain 
 
 ## Current feature status
 
-- **Implemented as experimental hooks, not tested on a device:** hide story seen, suppress one direct-read update path, screenshot-blocking guard.
-- **Implemented locally:** RS launcher, grouped settings menu, persisted toggles, optional media-URL downloader/share sheet.
+- **Implemented as experimental hooks, not tested on a device:** hide story seen, suppress one direct-read update path, screenshot-blocking guard, skip the view-once playback callback. The callback option is NOT unlimited viewing.
+- **Implemented locally:** RS launcher, grouped settings menu, persisted toggles, optional media-URL downloader/share sheet and direct-URL picture-in-picture playback.
 - **Not implemented:** the remaining advertised reference features. The menu clearly marks these as unavailable rather than pretending they work.
 
 This is **not** a 100%-complete reconstruction. The project is designed for user-led device tests, where unsupported Instagram versions may lack target classes/methods.
