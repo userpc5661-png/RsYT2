@@ -17,7 +17,7 @@ static NSArray<NSDictionary *> *RSFeatureList(void) {
             @{@"key":@"hide_direct_read", @"title":@"Hide Direct Read Receipt", @"group":@"Privacy", @"hook":@YES},
             @{@"key":@"screenshot_bypass", @"title":@"Screenshot Blocking Bypass", @"group":@"Privacy", @"hook":@YES},
             @{@"key":@"deleted_messages", @"title":@"Deleted Messages", @"group":@"Direct"},
-            @{@"key":@"view_once", @"title":@"View Once", @"group":@"Direct"},
+            @{@"key":@"view_once", @"title":@"View Once Playback Callback", @"group":@"Direct", @"hook":@YES},
             @{@"key":@"story_download", @"title":@"Story Download", @"group":@"Stories"},
             @{@"key":@"reels_download", @"title":@"Reels Download", @"group":@"Media"},
             @{@"key":@"photo_download", @"title":@"Photo Download", @"group":@"Media"},
@@ -104,17 +104,31 @@ static BOOL RSScreenBlock(id obj, SEL cmd, id context) {
     if (RSEnabled(@"screenshot_bypass")) return NO;
     return RSOrigScreenBlock ? RSOrigScreenBlock(obj, cmd, context) : YES;
 }
+// Reconstructed from constructor RVA 0xBAE8, replacement RVA 0xBB50.
+// The reference omits the original playback callback only when its user
+// setting and an additional internal byte guard are both true. RS Insta
+// provides an explicit opt-in to skip that callback; this does NOT make
+// one-time media unlimited or permanently accessible.
+static void (*RSOrigViewOncePlayback)(id, SEL, id, id, NSUInteger);
+static void RSViewOncePlayback(id obj, SEL cmd, id controller, id message, NSUInteger index) {
+    if (RSEnabled(@"view_once")) return;
+    if (RSOrigViewOncePlayback) RSOrigViewOncePlayback(obj, cmd, controller, message, index);
+}
 static void RSInstallHooks(void) {
     RSHookAvailable = [NSMutableDictionary dictionary];
-    Class story = RSResolveClass(@[@"IGStoryViewerItemSeenHandler"]);
+    Class story = RSResolveClass(@[@"_TtC28IGStoryViewerItemSeenHandler28IGStoryViewerItemSeenHandler", @"IGStoryViewerItemSeenHandler.IGStoryViewerItemSeenHandler", @"IGStoryViewerItemSeenHandler"]);
     RSHookAvailable[@"ghost_story_seen"] = @(RSInstall(story, @"handleItem:sectionController:focusedModelItem:",
         (IMP)RSStorySeen, (IMP *)&RSOrigStorySeen, NO));
     Class direct = RSResolveClass(@[@"IGDirectThreadViewListAdapterDataSource"]);
     RSHookAvailable[@"hide_direct_read"] = @(RSInstall(direct, @"shouldUpdateLastSeenMessage",
         (IMP)RSDirectSeen, (IMP *)&RSOrigDirectSeen, NO));
-    Class screen = RSResolveClass(@[@"IGQuickSnapExperimentationHelper"]);
+    Class screen = RSResolveClass(@[@"_TtC26IGQuickSnapExperimentation32IGQuickSnapExperimentationHelper", @"IGQuickSnapExperimentation.IGQuickSnapExperimentationHelper", @"IGQuickSnapExperimentationHelper"]);
     RSHookAvailable[@"screenshot_bypass"] = @(RSInstall(screen, @"shouldEnableScreenshotBlocking:",
         (IMP)RSScreenBlock, (IMP *)&RSOrigScreenBlock, YES));
+    Class viewOnce = RSResolveClass(@[@"IGDirectVisualMessageViewerSession.IGDirectVisualMessageViewerSession", @"IGDirectVisualMessageViewerSession"]);
+    RSHookAvailable[@"view_once"] = @(RSInstall(viewOnce,
+        @"visualMessageViewerController:didBeginPlaybackForVisualMessage:atIndex:",
+        (IMP)RSViewOncePlayback, (IMP *)&RSOrigViewOncePlayback, NO));
 }
 
 @interface RSInstaMenuController : UITableViewController
@@ -144,7 +158,7 @@ static void RSInstallHooks(void) {
     BOOL installed = implemented && [RSHookAvailable[key] boolValue];
     BOOL tool = [item[@"tool"] boolValue];
     cell.textLabel.text = item[@"title"];
-    cell.detailTextLabel.text = tool ? @"Direct HTTPS video only — tap to play" : !implemented ? @"Not implemented" : installed ? @"Experimental hook installed" : @"Hook unavailable";
+    cell.detailTextLabel.text = tool ? @"Direct HTTPS video only — tap to play" : !implemented ? @"Not implemented" : installed ? @"Hook installed — user testing required" : @"Hook unavailable";
     cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
     if (tool) {
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
