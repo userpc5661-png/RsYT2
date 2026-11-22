@@ -1,21 +1,23 @@
 # RS Insta
 
-Independent Objective-C iOS tweak project. This repository does **not** contain or redistribute the reference proprietary binary.
+**RS Insta** is now based on the real source code of **Sparkle for Instagram**, rather than the earlier small proof-of-concept tweak. The upstream feature source, settings screens and resources are imported into [RSInstaSparkle/](RSInstaSparkle/) under **GNU GPLv3**. Original project and authors: [Scythe101/sparkle-ig](https://github.com/Scythe101/sparkle-ig), with upstream authorship recorded in [RSINSTA_UPSTREAM.md](RSInstaSparkle/RSINSTA_UPSTREAM.md).
 
-## Current feature status
+## Current source of truth
 
-- **Implemented as experimental hooks, not tested on a device:** hide story seen, suppress one direct-read update path, screenshot-blocking guard, skip the view-once playback callback. The callback option is NOT unlimited viewing.
-- **Implemented locally:** RS launcher, grouped settings menu, persisted toggles, optional media-URL downloader/share sheet and direct-URL picture-in-picture playback.
-- **Not implemented:** the remaining advertised reference features. The menu clearly marks these as unavailable rather than pretending they work.
+- [Full Sparkle-derived RS Insta source](RSInstaSparkle/)
+- [Original feature documentation](RSInstaSparkle/FEATURES.md)
+- [Real settings screen source](RSInstaSparkle/src/Settings/SPKSettingsViewController.m)
+- [Build RS Insta from Sparkle source](.github/workflows/build-rsinsta-sparkle.yml)
+- [Download generated RSInsta.dylib / rootless DEB](../../actions/workflows/build-rsinsta-sparkle.yml)
 
-This is **not** a 100%-complete reconstruction. The project is designed for user-led device tests, where unsupported Instagram versions may lack target classes/methods.
+The old `src/RSInsta.m` and `build.yml` are kept as legacy prototypes, **not** the primary RS Insta code. Do not mistake their small generated dylib for the new Sparkle-derived version.
 
-## Build
+## Changes from upstream
 
-See `.github/workflows/build.yml` for a GitHub Actions macOS/iPhoneOS SDK build. A successful build means the output is an ARM64 iOS Mach-O dynamic library; it does **not** verify injection or runtime feature compatibility. Download the `RSInsta-dylib` workflow artifact from GitHub Actions after a successful run.
+RS Insta has its own build target `RSInsta.dylib`, package identifier `com.rsinsta.tweak`, package name `RS Insta`, and a few localized title changes. We preserve internal `SPK` classes, preferences, resource names and selectors where changing them could break features. The original Sparkle layout and feature code remain intact.
 
-## Test
+This does not imply every feature has been verified on your Instagram and iOS versions. User testing is required. The required FFmpegKit and Theos toolchain are configured in the new GitHub Actions workflow.
 
-`python3 tests/test_source.py`
+## GPLv3 license and credit
 
-Do not publish secrets, user accounts, session cookies, or the reference binary in issues or commits.
+Modifications and redistributions are licensed under GPLv3 with the corresponding source available. Keep upstream copyright notices and license intact. Do not import proprietary Beegram binaries or sensitive user data.
