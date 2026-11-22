@@ -7,11 +7,13 @@ The source is original RS Insta code. The reference binary has not been copied i
 | Hide Story Seen | One opt-in method hook | Not tested |
 | Hide Direct Read Receipt | One opt-in method hook | Not tested |
 | Screenshot Blocking Bypass | One opt-in method hook | Not tested |
+| View Once playback callback | Opt-in hook based on reference RVA 0xBB50; bypasses callback, not unlimited media viewing | Not tested |
 | Direct HTTPS media URL download/share | URLSession + share sheet | Not tested |
+| Direct URL Picture in Picture | AVPlayerViewController for direct HTTPS video URLs | Not tested |
 | RS floating launcher | UIKit | Not tested |
 | Three-finger tap launcher | UIKit gesture | Not tested |
 | NSUserDefaults preferences | Implemented | Not tested |
-| Other 20 menu entries | Not implemented | Not applicable |
+| Other 18 menu entries | Not implemented | Not applicable |
 
 A passed Actions compilation indicates only that the code compiles into an iOS ARM64 Mach-O dylib. It does not verify injection, signature, or compatibility. Runtime hooking requires a compatible injection environment with a provider of MSHookMessageEx. External method signatures are not dynamically verified; test in a non-production setup.
 
