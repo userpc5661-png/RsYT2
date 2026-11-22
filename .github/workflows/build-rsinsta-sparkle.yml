@@ -1,0 +1,86 @@
+name: Build RS Insta from Sparkle feature source
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-rsinsta-sparkle.yml'
+      - 'RSInstaSparkle/**'
+      - 'scripts/brand_sparkle.py'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout complete RS Insta feature source
+        uses: actions/checkout@v4
+      - name: Confirm GPL source and tweak name
+        run: |
+          test -f RSInstaSparkle/LICENSE
+          grep -q 'TWEAK_NAME = RSInsta' RSInstaSparkle/Makefile
+          grep -q 'Package: com.rsinsta.tweak' RSInstaSparkle/control
+          test -f RSInstaSparkle/src/Settings/SPKSettingsViewController.m
+      - name: Install Theos dependencies
+        run: |
+          brew install ldid dpkg make autoconf automake cmake libtool meson nasm ninja pkgconf wget yasm
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: Install pinned Theos with working Logos
+        uses: actions/checkout@v4
+        with:
+          repository: theos/theos
+          ref: 405e5c6ddb288615c030eeaedc6b265aae748285
+          path: theos
+          submodules: recursive
+      - name: Cache iPhoneOS 16.2 SDK
+        id: sdk_cache
+        uses: actions/cache@v4
+        with:
+          path: theos/sdks/
+          key: rsinsta-ios-sdk-16.2-v1
+      - name: Download iPhoneOS SDK
+        if: steps.sdk_cache.outputs.cache-hit != 'true'
+        env:
+          THEOS: ${{ github.workspace }}/theos
+        run: |
+          git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/xybp888/iOS-SDKs/
+          cd iOS-SDKs
+          git sparse-checkout set --no-cone iPhoneOS16.2.sdk
+          git checkout
+          mv *.sdk "$THEOS/sdks/"
+      - name: Cache FFmpegKit integration
+        id: ffmpeg_cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            RSInstaSparkle/modules/ffmpegkit
+            RSInstaSparkle/.cache/ffmpegkit
+          key: rsinsta-ffmpeg-${{ hashFiles('RSInstaSparkle/fetch-ffmpegkit.sh') }}
+      - name: Prepare FFmpegKit
+        working-directory: RSInstaSparkle
+        run: |
+          chmod +x ./fetch-ffmpegkit.sh
+          ./fetch-ffmpegkit.sh
+      - name: Build real RSInsta dylib and rootless DEB
+        working-directory: RSInstaSparkle
+        env:
+          THEOS: ${{ github.workspace }}/theos
+        run: |
+          set -euxo pipefail
+          make clean
+          make package THEOS_PACKAGE_SCHEME=rootless
+          find .theos -type f -name 'RSInsta.dylib' -print
+          mkdir -p ../dist
+          dylib="$(find .theos -type f -name RSInsta.dylib | head -n1)"
+          test -n "$dylib"
+          cp "$dylib" ../dist/RSInsta.dylib
+          cp packages/*.deb ../dist/
+          file ../dist/RSInsta.dylib
+          xcrun dwarfdump --uuid ../dist/RSInsta.dylib
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RSInsta-Sparkle-Feature-Build
+          path: dist/
+          if-no-files-found: error
